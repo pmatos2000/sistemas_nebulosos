@@ -2,13 +2,14 @@
 # Aluno: Paulo Henrique Rodrigues de Matos
 # Matricula: 2012070552
 
-# Biblioteca para calculos matemáticos
-import math as mat
-
-#Biblioteca para trabalhar com matriz
+# Biblioteca para trabalhar com matriz
 import numpy as np
 
-def kmedias_nebuloso(k, pontos, m, t):
+# FUnção para realizar copia de objetos no python
+from copy import copy
+
+
+def kmedias_nebuloso(pontos, k = 2, m = 2, t = 100, e = 1e-4):
     '''
         Descrição:
             Função usado para agrupamentos de pontos usando logica fuzzy
@@ -19,59 +20,42 @@ def kmedias_nebuloso(k, pontos, m, t):
         Parâmetros:
             k -> Número de agrupamentos
             pontos -> vetor de pontos
+            m -> Sensibilidade do fuzzy
             t -> Número de interações
+            e -> Criteiro de parada
     '''
 
     # Quantidades de pontos
-    m = pontos.shape[0]
-
-    # Dimensão do vetor
-    n = pontos.shape[1]
+    n = pontos.shape[0]
 
     # Inicia os centroides
     # Seleciona k pontos da lista aleatoriamente
-    id = np.random.randint(m, size = k)
-    centroides = np.zeros((k,n))
-    pertinencia = np.zeros((k,m))
+    id = np.random.choice(a = n, size = k, replace=False)
+    cents = pontos[id,:]
+    ncents = copy(cents)
 
-    for i in range(k):
-        centroides[i,:] = pontos[id[i], :]
+    # Inicia a matriz de pertinencia
+    perts = np.random.rand(n, k)
+    perts = perts/perts.sum(axis=1)[:,None]
 
-
-    for i in range(t):
+    for l in range(t):
         for j in range(k):
+            # Atualiza centroides
+            ncents[j,:] = perts[:,j].dot(pontos)/np.sum(perts[:,j])
 
-            # Calcula a norma total
-            _norma = lambda p : np.linalg.norm(p - centroides[j])
+        # Condição de saida
+        if (np.linalg.norm(ncents - cents) <  e):
+            break
+        cents = ncents
+        ncents = copy(cents)
 
-            norma_total = 0;
-            for p in pontos:
-                norma_total += _norma(p)
-
-            # Função de pertinencia
-            def _fp(p):
-                norma = _norma(p)
-                potencia = mat.floor(2 / (m - 1))
-                if(norma == 0):
-                    return 1
-                return 1/(norma/norma_total) ** potencia
-
-
-
-            # Calcula a função de pertinencia
-            pertinencia[j,:] = map(_fp, pontos)
-
-            # Atualiza o centroides
-            soma_pertiencia = np.sum(pertinencia[j,:] ** m)
-
-            centroides[j,:] = np.zeros(n)
-            for l in range(m):
-                centroides[j] += pontos[l,:] * pertinencia[j,l] ** m
-            centroides[j] /= soma_pertiencia
+        # Atualiza matriz de pertinencia
+        for j in range(k):
+            for i in range(n):
+                num = np.sum(np.square(pontos[i,:] - cents[j,:]))
+                den = np.sum(np.square(pontos[i,:] - cents))
+                perts[i,j] = 1/np.power(num/den, 2/(m-1))
+        perts = perts/perts.sum(axis=1)[:,None]
 
 
-        print(pertinencia)
-
-
-
-    return (centroides, pertinencia)
+    return ncents, perts
